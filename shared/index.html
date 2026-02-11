@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Word Stream Consumer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Word Stream</h1>
+
+  <div class="status-bar">
+    <span id="statusDot" class="status-dot"></span>
+    <span id="statusText" class="status-text">Connecting...</span>
+  </div>
+
+  <div class="connections-card">
+    <div>
+      <div id="connCount" class="connections-count">-</div>
+      <div class="connections-label">Active Connections</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn" class="ctrl-btn start" onclick="doStart()">Start</button>
+    <button id="pauseBtn" class="ctrl-btn pause" onclick="doPause()" disabled>Pause</button>
+    <button id="continueBtn" class="ctrl-btn continue" onclick="doContinue()" disabled>Continue</button>
+    <button id="stopBtn" class="ctrl-btn stop" onclick="doStop()" disabled>Stop</button>
+  </div>
+
+  <div id="wordStream" class="word-stream"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+networks:
+  wordstream:
+    driver: bridge
+
+volumes:
+  shared_web:
+
+services:
+  shared_init:
+    image: alpine:latest
+    volumes:
+      - ./shared:/src:ro
+      - shared_web:/dest
+    command: sh -c "cp -r /src/* /dest/"
+
+  producer:
+    build: ./producer
+    networks:
+      - wordstream
+
+  consumer_nginx:
+    build:
+      context: .
+      dockerfile: consumer_nginx/Dockerfile
+    ports:
+      - "3000:80"
+    volumes:
+      - shared_web:/usr/share/nginx/html:ro
+    networks:
+      - wordstream
+    depends_on:
+      shared_init:
+        condition: service_completed_successfully
+      producer:
+        condition: service_started
+
+  consumer_node:
+    build:
+      context: .
+      dockerfile: consumer_node/Dockerfile
+    ports:
+      - "3001:80"
+    volumes:
+      - shared_web:/app/public:ro
+    networks:
+      - wordstream
+    depends_on:
+      shared_init:
+        condition: service_completed_successfully
+      producer:
+        condition: service_started
