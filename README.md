@@ -1,6 +1,6 @@
 # WS_SSE_API
 
-A real-time word streaming application built with Docker Compose. A Python producer broadcasts random words over WebSocket and exposes a Server-Sent Events (SSE) endpoint for live connection tracking. Two consumer variants (Nginx and Node.js) serve the frontend and proxy traffic to the producer.
+A real-time word streaming application built with Docker Compose. A Python producer broadcasts random English and Telugu words over WebSocket and exposes a Server-Sent Events (SSE) endpoint for live connection tracking. Two consumer variants (Nginx and Node.js) serve the frontend and proxy traffic to the producer.
 
 ## Architecture
 
@@ -15,14 +15,14 @@ A real-time word streaming application built with Docker Compose. A Python produ
 │                              ╎        │         │                                     │
 │              ┌───────────────╎────────┼─────────┼────┐         ┌─────────────────┐    │
 │              │               ╎   mount│         │    │ WS      │                 │    │
-│  :3000 ◄─────  Consumer Nginx╎   (ro) │         │    │◄───────►│                 │    │
+│  :8000 ◄─────  Consumer Nginx╎   (ro) │         │    │◄───────►│                 │    │
 │              │               ╎        │         │    │ SSE     │                 │    │
 │              │               ╎        │         │    │◄────────│                 │    │
 │              └───────────────╎────────┴─────────┼────┘         │    Producer     │    │
 │                              ╎                  │              │    (Python)     │    │
 │              ┌───────────────╎──────────────────┼────┐         │                 │    │
 │              │               ╎             mount│    │ WS      │    :8765 ws     │    │
-│  :3001 ◄─────  Consumer Node ╎             (ro) │    │◄───────►│    :8080 http   │    │
+│  :8001 ◄─────  Consumer Node ╎             (ro) │    │◄───────►│    :8080 http   │    │
 │              │               ╎                  │    │ SSE     │                 │    │
 │              │               ╎                  │    │◄────────│                 │    │
 │              └───────────────╎──────────────────┘────┘         └─────────────────┘    │
@@ -33,14 +33,14 @@ A real-time word streaming application built with Docker Compose. A Python produ
 
 | Service | Description | Technology |
 |---|---|---|
-| **producer** | Generates random words every second and broadcasts them to all connected WebSocket clients. Exposes an SSE endpoint that pushes live active-connection counts. | Python 3.12, aiohttp, websockets, wonderwords |
+| **producer** | Generates random English and Telugu words at 60 wpm (50/50 split) and broadcasts them to all connected WebSocket clients. Exposes an SSE endpoint that pushes live active-connection counts. | Python 3.12, aiohttp, websockets, wonderwords |
 | **consumer_nginx** | Serves the static frontend and proxies `/ws` and `/api/connections` to the producer. | Nginx (Alpine) |
 | **consumer_node** | Same role as the Nginx consumer, implemented with Express and http-proxy-middleware. | Node.js 22 (Alpine), Express |
 | **shared_init** | One-shot init container that copies shared frontend assets into a Docker volume consumed by both consumers. | Alpine |
 
 ### Shared Volume
 
-The `shared/` directory contains the frontend assets (`index.html`, `style.css`, `app.js`) used by both consumers. At startup, the `shared_init` init container copies these files into a Docker named volume (`shared_web`). This volume is then mounted read-only into each consumer:
+The `shared/` directory contains the frontend assets (`index.html`, `style.css`, `app.js`, `favicon.svg`) used by both consumers. At startup, the `shared_init` init container copies these files into a Docker named volume (`shared_web`). This volume is then mounted read-only into each consumer:
 
 - **consumer_nginx** mounts it at `/usr/share/nginx/html`
 - **consumer_node** mounts it at `/app/public`
@@ -51,8 +51,12 @@ This ensures both consumers serve identical frontend code without duplicating fi
 
 | Path | Protocol | Description |
 |---|---|---|
-| `/ws` | WebSocket | Streams random words as JSON (`{"word": "..."}`) every second. |
+| `/ws` | WebSocket | Streams random English and Telugu words as JSON (`{"word": "..."}`) at 60 words per minute. |
 | `/api/connections` | SSE (`text/event-stream`) | Pushes `{"active_connections": N}` whenever a WebSocket client connects or disconnects. |
+
+### Client-Side Display Speed
+
+The server always emits words at 60 wpm. A slider on the UI (10–60 wpm, step 5) controls how fast words are displayed on the client. The client buffers incoming words and renders the latest one at the chosen interval. The history panel on the right side of the page records all displayed words with timestamps and can be toggled open or closed.
 
 ## Prerequisites
 
@@ -70,10 +74,10 @@ docker compose up -d
 
 Once running, open either consumer in a browser:
 
-- **Nginx consumer:** http://localhost:3000
-- **Node consumer:** http://localhost:3001
+- **Nginx consumer:** http://localhost:8000
+- **Node consumer:** http://localhost:8001
 
-Click **Start** to open a WebSocket connection and begin receiving words. The **Active Connections** counter updates automatically via SSE whenever any client connects or disconnects.
+Click **Start** to open a WebSocket connection and begin receiving words. Use the **Speed** slider to control how fast words appear on screen (10–60 wpm). The **Active Connections** counter at the bottom updates automatically via SSE. A collapsible **History** panel on the right edge logs all displayed words with timestamps.
 
 ## Project Structure
 
@@ -83,7 +87,8 @@ Click **Start** to open a WebSocket connection and begin receiving words. The **
 ├── producer/
 │   ├── Dockerfile
 │   ├── requirements.txt        # Python dependencies
-│   └── server.py               # WebSocket + SSE server
+│   ├── server.py               # WebSocket + SSE server
+│   └── telugu_words.py         # Telugu word list
 ├── consumer_nginx/
 │   ├── Dockerfile
 │   └── nginx.conf              # Reverse-proxy config (WS + SSE)
@@ -94,7 +99,8 @@ Click **Start** to open a WebSocket connection and begin receiving words. The **
 └── shared/
     ├── index.html              # Frontend markup
     ├── style.css               # Styles
-    └── app.js                  # Client-side JS (WebSocket + EventSource)
+    ├── app.js                  # Client-side JS (WebSocket + EventSource)
+    └── favicon.svg             # App icon
 ```
 
 ## Stopping

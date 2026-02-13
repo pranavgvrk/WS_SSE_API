@@ -1,10 +1,13 @@
 import asyncio
 import json
 import logging
+import random
 
 import websockets
 from aiohttp import web
 from wonderwords import RandomWord
+
+from telugu_words import TELUGU_WORDS
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("word-producer")
@@ -13,6 +16,8 @@ CONNECTED_CLIENTS = set()
 SSE_CLIENTS = set()
 
 r = RandomWord()
+
+BROADCAST_INTERVAL = 1.0  # 60 words per minute
 
 
 async def broadcast_connections():
@@ -38,15 +43,22 @@ async def handler(websocket):
         await broadcast_connections()
 
 
+def random_word():
+    """Return a random English or Telugu word."""
+    if random.random() < 0.5:
+        return r.word()
+    return random.choice(TELUGU_WORDS)
+
+
 async def broadcast_words():
-    """Every second, generate a random word and send it to all connected clients."""
+    """Generate a random word at 60 wpm and send it to all connected clients."""
     while True:
         if CONNECTED_CLIENTS:
-            word = r.word()
+            word = random_word()
             message = json.dumps({"word": word})
             logger.info("Broadcasting: %s", word)
             websockets.broadcast(CONNECTED_CLIENTS, message)
-        await asyncio.sleep(1)
+        await asyncio.sleep(BROADCAST_INTERVAL)
 
 
 async def handle_connections(request):

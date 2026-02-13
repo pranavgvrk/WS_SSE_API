@@ -1,12 +1,14 @@
-const MAX_WORDS = 200;
-const streamEl = document.getElementById("wordStream");
+const MAX_HISTORY = 200;
+const currentWordEl = document.getElementById("currentWord");
+const historyEl = document.getElementById("historyStream");
 const connCountEl = document.getElementById("connCount");
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
 const startBtn = document.getElementById("startBtn");
 const pauseBtn = document.getElementById("pauseBtn");
-const continueBtn = document.getElementById("continueBtn");
 const stopBtn = document.getElementById("stopBtn");
+const speedSlider = document.getElementById("speedSlider");
+const speedValueEl = document.getElementById("speedValue");
 
 /* ---------- State ---------- */
 let ws;
@@ -14,14 +16,24 @@ let sse;
 let paused = false;
 let stopped = true;
 let autoReconnect = false;
+let displayInterval = null;
+let latestWord = null;
+let displayWpm = 10;
 
 function setButtons() {
   startBtn.disabled = !stopped;
-  pauseBtn.disabled = stopped || paused;
-  continueBtn.disabled = stopped || !paused;
+  pauseBtn.disabled = stopped;
+  pauseBtn.textContent = paused ? "Continue" : "Pause";
   stopBtn.disabled = stopped;
 }
 setButtons();
+
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && !stopped && e.target === document.body) {
+    e.preventDefault();
+    togglePause();
+  }
+});
 
 /* ---------- WebSocket ---------- */
 function connect() {
@@ -32,12 +44,13 @@ function connect() {
     statusDot.classList.add("connected");
     statusText.textContent = "Connected";
     connectSSE();
+    startDisplayTimer();
   });
 
   ws.addEventListener("message", (event) => {
     if (paused) return;
     const data = JSON.parse(event.data);
-    addWord(data.word);
+    latestWord = data.word;
   });
 
   ws.addEventListener("close", () => {
@@ -55,16 +68,9 @@ function connect() {
   });
 }
 
-function addWord(word) {
-  const item = document.createElement("div");
-  item.className = "word-item";
-  const ts = new Date().toLocaleTimeString();
-  item.innerHTML = `<span class="ts">${ts}</span>${word}`;
-  streamEl.prepend(item);
 
-  while (streamEl.children.length > MAX_WORDS) {
-    streamEl.removeChild(streamEl.lastChild);
-  }
+function toggleHistory() {
+  document.querySelector(".history-panel").classList.toggle("expanded");
 }
 
 /* ---------- Controls ---------- */
@@ -72,20 +78,15 @@ function doStart() {
   stopped = false;
   paused = false;
   autoReconnect = true;
-  streamEl.innerHTML = "";
+  currentWordEl.textContent = "—";
+  historyEl.innerHTML = "";
   connect();
   setButtons();
 }
 
-function doPause() {
-  paused = true;
-  statusText.textContent = "Paused";
-  setButtons();
-}
-
-function doContinue() {
-  paused = false;
-  statusText.textContent = "Connected";
+function togglePause() {
+  paused = !paused;
+  statusText.textContent = paused ? "Paused" : "Connected";
   setButtons();
 }
 
@@ -101,9 +102,53 @@ function doStop() {
     sse.close();
     sse = null;
   }
-  streamEl.innerHTML = "";
+  stopDisplayTimer();
+  latestWord = null;
+  currentWordEl.textContent = "—";
+  historyEl.innerHTML = "";
   connCountEl.textContent = "-";
   setButtons();
+}
+
+/* ---------- Display Speed Control ---------- */
+function startDisplayTimer() {
+  stopDisplayTimer();
+  const ms = (60 / displayWpm) * 1000;
+  displayInterval = setInterval(() => {
+    if (latestWord) {
+      showWord(latestWord);
+      latestWord = null;
+    }
+  }, ms);
+}
+
+function stopDisplayTimer() {
+  if (displayInterval) {
+    clearInterval(displayInterval);
+    displayInterval = null;
+  }
+}
+
+function showWord(word) {
+  currentWordEl.textContent = word;
+
+  const item = document.createElement("div");
+  item.className = "history-item";
+  const ts = new Date().toLocaleTimeString();
+  item.innerHTML = `<span class="ts">${ts}</span>${word}`;
+  historyEl.prepend(item);
+
+  while (historyEl.children.length > MAX_HISTORY) {
+    historyEl.removeChild(historyEl.lastChild);
+  }
+}
+
+function onSpeedChange(value) {
+  displayWpm = Number(value);
+  speedValueEl.textContent = value + " wpm";
+  if (displayInterval) {
+    startDisplayTimer();
+  }
 }
 
 /* ---------- Active Connections (SSE) ---------- */
