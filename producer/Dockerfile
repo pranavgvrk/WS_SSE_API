@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY server.py telugu_words.py ./
+COPY server.py ws_handler.py sse_handler.py telugu_words.py ./
 
 EXPOSE 8765 8080
 

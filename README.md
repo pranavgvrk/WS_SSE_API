@@ -87,8 +87,10 @@ Click **Start** to open a WebSocket connection and begin receiving words. Use th
 ├── producer/
 │   ├── Dockerfile
 │   ├── requirements.txt        # Python dependencies
-│   ├── server.py               # WebSocket + SSE server
-│   └── telugu_words.py         # Telugu word list
+│   ├── server.py               # Entry point — wires WS and SSE together
+│   ├── ws_handler.py           # WebSocket handler and word broadcast loop
+│   ├── sse_handler.py          # SSE handler for active connection counts
+│   └── telugu_words.py         # Telugu word list (269 words)
 ├── consumer_nginx/
 │   ├── Dockerfile
 │   └── nginx.conf              # Reverse-proxy config (WS + SSE)
